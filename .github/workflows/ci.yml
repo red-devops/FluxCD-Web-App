@@ -1,0 +1,37 @@
+name: "Web-App-CI"
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGION: eu-central-1
+  APPLICATION_NAME: web-app
+
+jobs:
+  build_and_published:
+    name: Build and published image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set web-app version
+        run: |
+          APP_VERSION=$(grep -oP '(?<=version )[\d.]+(?=</h1>)' index.html)
+          echo "web-app version: $APP_VERSION"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
+      - name: Docker build
+        run: |
+          docker build -t ${{ env.APPLICATION_NAME }}:$APP_VERSION .
+
+      - name: Push to ECR
+        uses: jwalton/gh-ecr-push@v2
+        with:
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: ${{ env.REGION }}
+          local-image: ${{ env.APPLICATION_NAME }}:$APP_VERSION
+          image: ${{ env.APPLICATION_NAME }}:$APP_VERSION
+        
